@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LHundG-Schnellprüfung</title>
+<meta name="description" content="Einordnung von Hunden nach dem Landeshundegesetz NRW mit Pflichten und Fundstellen">
+<meta name="theme-color" content="#1e5c47">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="LHundG">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+/* Layout: eine Spalte, oben fixierte Ergebnis-Plakette, Eingaben, dann Subsumtion + Pflichtenliste mit Fundstellen */
+:root{
+  --paper:#f4f6f3; --surface:#ffffff; --ink:#1b2321; --muted:#57635e; --line:#d6dcd7; --accent:#1e5c47;
+  --crit:#a3271d; --crit-bg:#fbeceA; --warn:#8a5300; --warn-bg:#fbf1df; --info:#24538f; --info-bg:#e8eff9; --neutral:#4a5752; --neutral-bg:#e9edea;
+  --display:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --body:"IBM Plex Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#111614; --surface:#19201d; --ink:#e4eae7; --muted:#9ba8a2; --line:#2d3733; --accent:#74c3a3;
+    --crit:#f2948a; --crit-bg:#3a1e1b; --warn:#e9b56b; --warn-bg:#36290f; --info:#93b7ee; --info-bg:#1b2a40; --neutral:#b9c4bf; --neutral-bg:#26302c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111614; --surface:#19201d; --ink:#e4eae7; --muted:#9ba8a2; --line:#2d3733; --accent:#74c3a3;
+  --crit:#f2948a; --crit-bg:#3a1e1b; --warn:#e9b56b; --warn-bg:#36290f; --info:#93b7ee; --info-bg:#1b2a40; --neutral:#b9c4bf; --neutral-bg:#26302c;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper); color:var(--ink); font-family:var(--body); font-size:16px; line-height:1.5; -webkit-text-size-adjust:100%}
+.wrap{max-width:720px; margin:0 auto; padding:0 16px 48px}
+header.top{padding:24px 0 8px}
+h1{font-family:var(--display); font-weight:700; font-size:1.75rem; line-height:1.15; margin:0; text-wrap:balance}
+.stand{color:var(--muted); font-size:.8rem; margin-top:6px}
+h2{font-family:var(--display); font-weight:600; font-size:1.2rem; margin:0 0 4px; text-wrap:balance}
+
+/* Ergebnis-Plakette */
+.badge-bar{position:sticky; top:0; z-index:5; background:var(--paper); padding:10px 0; border-bottom:1px solid var(--line)}
+.badge{display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit}
+.pill{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-weight:600; font-size:.85rem; white-space:nowrap}
+.pill::before{content:""; width:8px; height:8px; border-radius:50%; background:currentColor}
+.c-crit{color:var(--crit); background:var(--crit-bg)}
+.c-warn{color:var(--warn); background:var(--warn-bg)}
+.c-info{color:var(--info); background:var(--info-bg)}
+.c-neutral{color:var(--neutral); background:var(--neutral-bg)}
+.badge-norm{font-size:.85rem; color:var(--muted)}
+
+/* Eingaben */
+form{display:grid; gap:14px; margin-top:16px}
+fieldset{border:1px solid var(--line); background:var(--surface); border-radius:10px; padding:14px 14px 16px; margin:0; display:grid; gap:10px}
+legend{font-weight:600; padding:0 6px; font-size:.95rem}
+.hint{font-size:.8rem; color:var(--muted)}
+label{font-size:.92rem}
+select,input[type=number]{width:100%; font:inherit; color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:10px 12px; min-height:44px}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.opt{display:flex; gap:10px; align-items:flex-start; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--paper); cursor:pointer}
+.opt input{margin-top:4px; accent-color:var(--accent); width:18px; height:18px; flex:none}
+.opt:has(input:checked){border-color:var(--accent)}
+.opts{display:grid; gap:8px}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.hidden{display:none !important}
+.sizeflag{font-size:.85rem; font-weight:600}
+
+/* Ergebnis */
+#ergebnis{margin-top:22px; display:grid; gap:14px; scroll-margin-top:64px}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px}
+.card.lead{border-left:5px solid var(--cat, var(--neutral))}
+.cat-title{font-family:var(--display); font-size:1.35rem; font-weight:700; line-height:1.2; margin:6px 0 2px; text-wrap:balance}
+.cat-norm{color:var(--muted); font-size:.9rem}
+ol.sub{margin:10px 0 0; padding-left:20px; display:grid; gap:6px}
+ol.sub li{font-size:.93rem}
+.duties{list-style:none; margin:8px 0 0; padding:0; display:grid}
+.duty{display:grid; grid-template-columns:1fr; gap:2px; padding:10px 0; border-top:1px solid var(--line)}
+.duty:first-child{border-top:0}
+.duty-head{display:flex; justify-content:space-between; gap:10px; align-items:baseline; flex-wrap:wrap}
+.duty-title{font-weight:600}
+.cite{font-size:.82rem; color:var(--accent); font-weight:500; font-variant-numeric:tabular-nums}
+.duty-text{font-size:.9rem; color:var(--muted)}
+.duty.off .duty-title{text-decoration:line-through; text-decoration-thickness:1px; color:var(--muted)}
+.notes{list-style:none; margin:8px 0 0; padding:0; display:grid; gap:10px}
+.note{display:grid; grid-template-columns:auto 1fr; gap:10px; font-size:.9rem; align-items:start}
+.tag{font-size:.7rem; font-weight:600; letter-spacing:.04em; text-transform:uppercase; padding:2px 6px; border-radius:4px; border:1px solid currentColor; white-space:nowrap; margin-top:2px}
+.tag.t-vv{color:var(--warn)}
+.tag.t-rspr{color:var(--info)}
+.tag.t-gesetz{color:var(--accent)}
+.tag.t-offen{color:var(--crit)}
+.actions{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+button{font:inherit; font-weight:600; color:#fff; background:var(--accent); border:0; border-radius:8px; padding:10px 16px; min-height:44px; cursor:pointer}
+:root[data-theme="dark"] button{color:#0d1311}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) button{color:#0d1311} }
+button.ghost{background:transparent; color:var(--accent); border:1px solid var(--accent)}
+#copyMsg{font-size:.85rem; color:var(--muted)}
+footer{margin-top:24px; font-size:.8rem; color:var(--muted); display:grid; gap:8px}
+footer a{color:var(--accent)}
+footer ul{margin:0; padding-left:18px}
+@media (prefers-reduced-motion: no-preference){ html{scroll-behavior:smooth} }
+</style>
+</head>
+<body>
+<div class="badge-bar">
+  <div class="wrap" style="padding-bottom:0">
+    <a class="badge" href="#ergebnis" aria-label="Zum Ergebnis springen">
+      <span id="badgePill" class="pill c-crit">Gefährlicher Hund</span>
+      <span id="badgeNorm" class="badge-norm">§ 3 Abs. 2</span>
+    </a>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="top">
+    <h1>LHundG-Schnellprüfung</h1>
+    <div class="stand">LHundG NRW i.d.F. ab 27.09.2016 · VV LHundG zuletzt geändert durch RdErl. v. 30.09.2026 (MB.NRW 2026 Nr. 281) · App-Stand 16.11.2026</div>
+  </header>
+
+  <form id="f" autocomplete="off" novalidate>
+    <fieldset>
+      <legend>1 · Rasse bzw. Erscheinungsbild</legend>
+      <label for="breed" class="hidden">Rasse</label>
+      <select id="breed">
+        <optgroup label="§ 3 Abs. 2 – gefährliche Hunde (Rassevermutung)">
+          <option value="3:Pittbull Terrier">Pittbull Terrier</option>
+          <option value="3:American Staffordshire Terrier" selected>American Staffordshire Terrier</option>
+          <option value="3:Staffordshire Bullterrier">Staffordshire Bullterrier</option>
+          <option value="3:Bullterrier">Bullterrier</option>
+          <option value="mini:Miniatur-Bullterrier">Miniatur-Bullterrier (Abgrenzungsfall)</option>
+        </optgroup>
+        <optgroup label="§ 10 Abs. 1 – Hunde bestimmter Rassen">
+          <option value="10:Alano">Alano</option>
+          <option value="10:American Bulldog">American Bulldog</option>
+          <option value="10:Bullmastiff">Bullmastiff</option>
+          <option value="10:Mastiff">Mastiff</option>
+          <option value="10:Mastino Espanol">Mastino Espanol</option>
+          <option value="10:Mastino Napoletano">Mastino Napoletano</option>
+          <option value="10:Fila Brasileiro">Fila Brasileiro</option>
+          <option value="10:Dogo Argentino">Dogo Argentino</option>
+          <option value="10:Rottweiler">Rottweiler</option>
+          <option value="10:Tosa Inu">Tosa Inu</option>
+        </optgroup>
+        <optgroup label="Sonderfall Verwaltungsvorschrift">
+          <option value="bully:American Bully">American Bully (VV Nr. 3.2.5)</option>
+        </optgroup>
+        <optgroup label="Sonstige">
+          <option value="other:andere Rasse oder Mischling">Andere Rasse / Mischling ohne Listenbezug</option>
+        </optgroup>
+      </select>
+
+      <div id="originBox" class="opts" role="radiogroup" aria-label="Abstammung">
+        <label class="opt"><input type="radio" name="origin" value="pure" checked> <span>Reinrassig bzw. als diese Rasse gehalten</span></label>
+        <label class="opt"><input type="radio" name="origin" value="clear"> <span>Kreuzung, Phänotyp der Listenrasse tritt <b>deutlich</b> hervor</span></label>
+        <label class="opt"><input type="radio" name="origin" value="doubt"> <span>Kreuzung, Phänotyp <b>zweifelhaft</b></span></label>
+        <label class="opt"><input type="radio" name="origin" value="none"> <span>Kreuzung, Phänotyp tritt <b>nicht</b> deutlich hervor</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>2 · Gefährlichkeit im Einzelfall (§ 3 Abs. 3)</legend>
+      <div class="opts" role="radiogroup" aria-label="Feststellung nach § 3 Abs. 3">
+        <label class="opt"><input type="radio" name="fest" value="none" checked> <span>Keine Feststellung, kein bekannter Vorfall</span></label>
+        <label class="opt"><input type="radio" name="fest" value="pending"> <span>Vorfall bekannt, Feststellung steht aus</span></label>
+        <label class="opt"><input type="radio" name="fest" value="yes"> <span>Feststellung durch die Behörde liegt vor</span></label>
+      </div>
+      <div id="nrBox" class="hidden">
+        <label for="nr">Tatbestand</label>
+        <select id="nr">
+          <option value="1">Nr. 1 – Ausbildung, Zucht oder Kreuzung auf gesteigerte Aggressivität (entgegen § 2 Abs. 3)</option>
+          <option value="2">Nr. 2 – Ausbildung zum Nachteil des Menschen, Schutzhund, Zivilschärfe</option>
+          <option value="3" selected>Nr. 3 – Biss eines Menschen (außer Verteidigung bei strafbarer Handlung)</option>
+          <option value="4">Nr. 4 – Anspringen eines Menschen in Gefahr drohender Weise</option>
+          <option value="5">Nr. 5 – Biss eines Hundes ohne eigenen Angriff bzw. trotz Unterwerfungsgeste</option>
+          <option value="6">Nr. 6 – Unkontrolliertes Hetzen, Beißen oder Reißen von Wild, Vieh, Katzen u. a.</option>
+        </select>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>3 · Größe im ausgewachsenen Zustand</legend>
+      <div class="row2">
+        <div><label for="cm">Widerristhöhe (cm)</label><input id="cm" type="number" inputmode="decimal" min="0" step="1" value="46"></div>
+        <div><label for="kg">Gewicht (kg)</label><input id="kg" type="number" inputmode="decimal" min="0" step="0.5" value="28"></div>
+      </div>
+      <div id="sizeFlag" class="sizeflag"></div>
+      <div class="hint">Maßgeblich ist der ausgewachsene Hund, bei Welpen also die zu erwartende Größe (§ 11 Abs. 1: mindestens 40 cm oder mindestens 20 kg).</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>4 · Weitere Umstände</legend>
+      <label class="opt"><input type="checkbox" id="young"> <span>Hund ist jünger als sechs Monate</span></label>
+      <label class="opt" id="befreitBox"><input type="checkbox" id="befreit"> <span>Befreiung von Leinen- und Maulkorbpflicht ist erteilt (§ 5 Abs. 3)</span></label>
+    </fieldset>
+  </form>
+
+  <section id="ergebnis" aria-live="polite">
+    <div class="card lead" id="leadCard">
+      <span id="catPill" class="pill c-crit">Gefährlicher Hund</span>
+      <div class="cat-title" id="catTitle"></div>
+      <div class="cat-norm" id="catNorm"></div>
+      <ol class="sub" id="subsumtion"></ol>
+    </div>
+
+    <div class="card">
+      <h2>Pflichten und Folgen</h2>
+      <ul class="duties" id="duties"></ul>
+    </div>
+
+    <div class="card" id="notesCard">
+      <h2>Hinweise aus Verwaltungsvorschrift und Rechtsprechung</h2>
+      <ul class="notes" id="notes"></ul>
+    </div>
+
+    <div class="actions">
+      <button type="button" id="copy">Ergebnis als Text kopieren</button>
+      <button type="button" class="ghost" id="reset">Zurücksetzen</button>
+      <span id="copyMsg" role="status"></span>
+    </div>
+  </section>
+
+  <footer>
+    <div>Arbeitshilfe zur ersten Einordnung, ersetzt nicht die Prüfung am amtlichen Normtext. Die Fundstellen sind nach den unten genannten Quellen erstellt. Wo eine Zuordnung nicht abschließend geklärt ist, steht der Hinweis „offen“.</div>
+    <ul>
+      <li><a href="https://recht.nrw.de/lrgv/gesetz/27092016-hundegesetz-fuer-das-land-nordrhein-westfalen-landeshundegesetz-lhundg-nrw">LHundG NRW, recht.nrw.de</a></li>
+      <li><a href="https://recht.nrw.de/mbnrw/2026-281">Vierte Änderung der VV LHundG, MB.NRW 2026 Nr. 281</a></li>
+      <li><a href="https://recht.nrw.de/mblnrw/2020-s446-0">Änderung der VV LHundG, MBl. NRW. 2020 S. 446</a></li>
+      <li><a href="https://dejure.org/dienste/vernetzung/rechtsprechung?Text=5+B+7%2F25">OVG NRW, Beschl. v. 10.02.2025 – 5 B 7/25, 5 E 2/25</a></li>
+    </ul>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var NR_TEXT = {
+    1:"Ausbildung, Zucht oder Kreuzung mit dem Ziel gesteigerter Aggressivität",
+    2:"Ausbildung zum Nachteil des Menschen, zum Schutzhund oder auf Zivilschärfe",
+    3:"Biss eines Menschen",
+    4:"Anspringen eines Menschen in Gefahr drohender Weise",
+    5:"Biss eines anderen Hundes",
+    6:"Unkontrolliertes Hetzen, Beißen oder Reißen anderer Tiere"
+  };
+
+  function readState(){
+    var b = $("breed").value.split(":");
+    var origin = document.querySelector('input[name="origin"]:checked').value;
+    var fest = document.querySelector('input[name="fest"]:checked').value;
+    var cm = parseFloat($("cm").value), kg = parseFloat($("kg").value);
+    var big = (!isNaN(cm) && cm >= 40) || (!isNaN(kg) && kg >= 20);
+    var sizeKnown = !isNaN(cm) || !isNaN(kg);
+    return { group:b[0], breed:b[1], origin:origin, fest:fest, nr:parseInt($("nr").value,10),
+             cm:cm, kg:kg, big:big, sizeKnown:sizeKnown, young:$("young").checked, befreit:$("befreit").checked };
+  }
+
+  function classify(s){
+    var hasOrigin = (s.group==="3" || s.group==="10" || s.group==="mini");
+    var listed = hasOrigin && s.origin!=="none";
+    var cat;
+    if (s.fest==="yes") cat = "g33";
+    else if (listed && (s.group==="3" || s.group==="mini")) cat = "g32";
+    else if (s.group==="bully") cat = "g32vv";
+    else if (listed && s.group==="10") cat = "b10";
+    else if (s.big) cat = "g11";
+    else cat = "sonst";
+    return { cat:cat, hasOrigin:hasOrigin, listed:listed };
+  }
+
+  var CAT = {
+    g33:  { pill:"Gefährlicher Hund", cls:"c-crit", color:"var(--crit)", title:"Gefährlicher Hund im Einzelfall", norm:"§ 3 Abs. 1, Abs. 3 LHundG NRW" },
+    g32:  { pill:"Gefährlicher Hund", cls:"c-crit", color:"var(--crit)", title:"Gefährlicher Hund kraft Rassevermutung", norm:"§ 3 Abs. 1, Abs. 2 LHundG NRW" },
+    g32vv:{ pill:"Gefährlicher Hund (VV)", cls:"c-crit", color:"var(--crit)", title:"Vermutet gefährlicher Hund nach Verwaltungsvorschrift", norm:"§ 3 Abs. 2 LHundG NRW i.V.m. Nr. 3.2.5 VV LHundG" },
+    b10:  { pill:"Bestimmte Rasse", cls:"c-warn", color:"var(--warn)", title:"Hund bestimmter Rasse", norm:"§ 10 Abs. 1 LHundG NRW" },
+    g11:  { pill:"Großer Hund", cls:"c-info", color:"var(--info)", title:"Großer Hund (40/20)", norm:"§ 11 Abs. 1 LHundG NRW" },
+    sonst:{ pill:"Sonstiger Hund", cls:"c-neutral", color:"var(--neutral)", title:"Sonstiger Hund", norm:"§ 2 LHundG NRW" }
+  };
+
+  function subsumtion(s, c){
+    var L = [];
+    var bn = s.breed;
+    if (c.cat==="g33"){
+      L.push("Die Behörde hat die Gefährlichkeit im Einzelfall festgestellt: § 3 Abs. 3 Satz 1 Nr. "+s.nr+" ("+NR_TEXT[s.nr]+"), festgestellt nach Begutachtung durch den amtlichen Tierarzt (§ 3 Abs. 3 Satz 2).");
+      if (c.listed && (s.group==="3"||s.group==="mini")) L.push("Zugleich greift die Rassevermutung des § 3 Abs. 2 ("+bn+").");
+      if (s.group==="bully") L.push("Zugleich besteht die Vermutung nach Nr. 3.2.5 VV LHundG (American Bully).");
+      if (c.listed && s.group==="10") L.push("Die Rassezugehörigkeit nach § 10 Abs. 1 tritt hinter die Einstufung als gefährlicher Hund zurück.");
+      return L;
+    }
+    if (c.cat==="g32"){
+      if (s.group==="mini"){
+        L.push("Der Miniatur-Bullterrier ist in § 3 Abs. 2 Satz 1 nicht eigens genannt. Bei Zweifeln ist nach der Zweifelsregel des § 3 Abs. 2 Satz 3 grundsätzlich von einer Zuordnung zum Standard-Bullterrier auszugehen.");
+      } else if (s.origin==="pure"){
+        L.push(bn+" ist in § 3 Abs. 2 Satz 1 ausdrücklich genannt.");
+      }
+      if (s.origin==="clear") L.push("Kreuzung, bei der der Phänotyp einer in § 3 Abs. 2 Satz 1 genannten Rasse deutlich hervortritt (§ 3 Abs. 2 Satz 2).");
+      if (s.origin==="doubt") L.push("Zweifelsfall: Die Halterin oder der Halter muss nachweisen, dass keine Kreuzung nach § 3 Abs. 2 Satz 1 vorliegt (§ 3 Abs. 2 Satz 3). Bis dahin gilt die Vermutung.");
+      L.push("Die Gefährlichkeit wird damit gesetzlich vermutet (§ 3 Abs. 1).");
+      return L;
+    }
+    if (c.cat==="g32vv"){
+      L.push("Nach Nr. 3.2.5 VV LHundG (eingefügt durch RdErl. v. 30.09.2026) ist der American Bully keine eigene Rasse im Sinne des LHundG. Bei Hunden, die als American Bully vorgestellt werden, wird vermutet, dass es sich um gefährliche Hunde nach § 3 Abs. 2 handelt.");
+      L.push("Abweichungen, die nur Größe oder Gewicht betreffen, bleiben außer Betracht. Die Vermutung ist nach § 3 Abs. 2 Satz 3 widerlegbar.");
+      L.push("Die VV bindet nur die Verwaltung. Im gerichtlichen Verfahren bleibt der Phänotyp-Maßstab des § 3 Abs. 2 Satz 2 entscheidend.");
+      return L;
+    }
+    if (c.cat==="b10"){
+      if (s.origin==="pure") L.push(bn+" ist in § 10 Abs. 1 genannt.");
+      if (s.origin==="clear") L.push("Kreuzung mit "+bn+": Der Phänotyp-Maßstab des § 3 Abs. 2 Satz 2 gilt trotz fehlenden Verweises auch für § 10 Abs. 1 (OVG NRW, Urt. v. 12.03.2019 – 5 A 1210/17, Rn. 54, zitiert nach VV LHundG i.d.F. 2020).");
+      if (s.origin==="doubt") L.push("Zweifelsfall: Ob die Beweislastregel des § 3 Abs. 2 Satz 3 auch für § 10 Abs. 1 gilt, ist hier nicht verifiziert (offen). § 10 Abs. 1 verweist auf § 3 nicht.");
+      L.push("Für den Hund gelten § 4 mit Ausnahme von Abs. 2 und die §§ 5 bis 8 entsprechend (§ 10 Abs. 1).");
+      if (s.big) L.push("Er ist zwar auch ein großer Hund, § 10 geht in den Anforderungen aber über § 11 hinaus.");
+      return L;
+    }
+    if (c.hasOrigin && s.origin==="none") L.push("Kreuzung mit "+bn+", deren Phänotyp nicht deutlich hervortritt: keine Kreuzung im Sinne von § 3 Abs. 2 Satz 2"+(s.group==="10"?" bzw. § 10 Abs. 1":"")+".");
+    if (s.group==="other") L.push("Keine Rasse aus § 3 Abs. 2 oder § 10 Abs. 1. Jüngere Züchtungen (z. B. Old English Bulldog) sind keine eigenständigen Rassen im Sinne des LHundG. Sie werden am Phänotyp gemessen.");
+    if (c.cat==="g11"){
+      L.push("Ausgewachsen "+(isNaN(s.cm)?"":"Widerristhöhe "+s.cm+" cm")+(!isNaN(s.cm)&&!isNaN(s.kg)?", ":"")+(isNaN(s.kg)?"":"Gewicht "+s.kg+" kg")+": Mindestens einer der Schwellenwerte (40 cm oder 20 kg) ist erreicht (§ 11 Abs. 1).");
+    } else {
+      L.push(s.sizeKnown ? "Beide Schwellenwerte des § 11 Abs. 1 (40 cm, 20 kg) werden nicht erreicht." : "Größe und Gewicht sind nicht angegeben. Ohne diese Angaben lässt sich § 11 nicht prüfen.");
+      L.push("Es gelten nur die allgemeinen Pflichten des § 2.");
+    }
+    return L;
+  }
+
+  function D(title, cite, text, off){ return {title:title, cite:cite, text:text||"", off:!!off}; }
+
+  function duties(s, c){
+    var out = [];
+    var cat = c.cat;
+    var gef = (cat==="g33"||cat==="g32"||cat==="g32vv");
+    var strict = gef || cat==="b10";
+    var ref10 = cat==="b10" ? " i.V.m. § 10 Abs. 1" : "";
+
+    if (strict){
+      out.push(D("Haltungserlaubnis erforderlich", "§ 4 Abs. 1 Satz 1"+ref10, "Voraussetzungen nach § 4 Abs. 1 Satz 2 Nr. 1–6: vollendetes 18. Lebensjahr, Sachkunde und Zuverlässigkeit, sicheres Halten und Führen an der Leine, ausbruchsichere Unterbringung, besondere Haftpflichtversicherung, fälschungssichere Kennzeichnung."));
+      if (cat==="g32" || cat==="g32vv" || (cat==="g33" && (s.nr===1||s.nr===2)))
+        out.push(D("Besonderes privates oder öffentliches Interesse", "§ 4 Abs. 2", "Gilt für Hunde nach § 3 Abs. 2 und § 3 Abs. 3 Nr. 1 und 2, z. B. Bewachung eines gefährdeten Besitztums."));
+      else if (cat==="g33")
+        out.push(D("Kein besonderes Interesse nötig", "§ 4 Abs. 2", "§ 4 Abs. 2 erfasst von § 3 Abs. 3 nur die Nr. 1 und 2.", true));
+      else
+        out.push(D("Kein besonderes Interesse nötig", "§ 10 Abs. 1", "§ 4 Abs. 2 ist von der Verweisung ausgenommen.", true));
+      out.push(D("Sachkunde", cat==="b10" ? "§ 6, § 10 Abs. 3" : "§ 6 Abs. 2", cat==="b10" ? "Bescheinigung des amtlichen Tierarztes oder einer anerkannten sachverständigen Person bzw. Stelle. Kraft Gesetzes sachkundig sind die Personengruppen nach § 6 Abs. 3 (u. a. Tierärzte, Jagdscheininhaber, Polizeihundeführer)." : "Bescheinigung des amtlichen Tierarztes. Kraft Gesetzes sachkundig sind die Personengruppen nach § 6 Abs. 3 (u. a. Tierärzte, Jagdscheininhaber, Polizeihundeführer)."));
+      out.push(D("Zuverlässigkeit", "§ 7"+ref10, "Regelmäßiger Nachweis durch Führungszeugnis."));
+      out.push(D("Mikrochip-Kennzeichnung", "§ 4 Abs. 1 Satz 2 Nr. 6, Abs. 7"+ref10, "Elektronisch lesbarer Chip mit nichtsprechender Nummer; Weitergabe an die zentrale Erfassung."));
+      out.push(D("Ausbruchsichere Haltung", "§ 5 Abs. 1"+ref10, "Der Hund darf das befriedete Besitztum nicht gegen den Willen des Halters verlassen können."));
+      var befreitOK = s.befreit && cat!=="g33";
+      out.push(D("Leinenpflicht", "§ 5 Abs. 2 Satz 1"+ref10,
+        befreitOK ? "Durch die Befreiung entfallen. Die Leine bleibt aber in den Bereichen nach § 2 Abs. 2 und § 11 Abs. 6 Pflicht (§ 5 Abs. 3 Satz 2)."
+                  : "Außerhalb des befriedeten Besitztums sowie in Fluren, Aufzügen, Treppenhäusern und auf Zuwegen von Mehrfamilienhäusern. Ausnahme: ausgewiesene Hundeauslaufbereiche (§ 5 Abs. 2 Satz 2).", befreitOK));
+      var mkOff = s.young || befreitOK;
+      out.push(D("Maulkorbpflicht", "§ 5 Abs. 2 Satz 3"+ref10,
+        s.young ? "Entfällt bis zur Vollendung des sechsten Lebensmonats (§ 5 Abs. 2 Satz 4)."
+                : (befreitOK ? "Durch die Befreiung entfallen (§ 5 Abs. 3 Satz 1)." : "Beißsicherer Maulkorb oder eine gleich wirksame Vorrichtung."), mkOff));
+      if (cat==="g33")
+        out.push(D("Befreiung von Leine/Maulkorb nicht vorgesehen", "§ 5 Abs. 3 Satz 1", "Die Vorschrift erfasst nur Hunde im Sinne des § 3 Abs. 2. Möglich bleibt ein Antrag auf Aufhebung der Feststellung (vgl. Hinweise).", true));
+      else if (!s.befreit)
+        out.push(D("Befreiung von Leine/Maulkorb auf Antrag", cat==="b10" ? "§ 5 Abs. 3 i.V.m. § 10 Abs. 1, 2" : "§ 5 Abs. 3",
+          cat==="b10" ? "Nachweis durch Verhaltensprüfung beim Veterinäramt oder bei einer anerkannten sachverständigen Person bzw. Stelle (§ 10 Abs. 2)." : "Nachweis durch Verhaltensprüfung bei der für den Tierschutz zuständigen Behörde (§ 5 Abs. 3 Satz 3)."));
+      out.push(D("Führen durch Dritte", "§ 5 Abs. 4 Satz 2, 3"+ref10, "Nur durch Personen ab 18 Jahren, die sachkundig und zuverlässig sind und den Hund sicher halten können."));
+      out.push(D("Nicht mehrere Hunde gleichzeitig führen", "§ 5 Abs. 4 Satz 4"+ref10, ""));
+      out.push(D("Haftpflichtversicherung", "§ 5 Abs. 5"+ref10, "Mindestens 500.000 € für Personenschäden und 250.000 € für sonstige Schäden."));
+      out.push(D("Abgabe nur an Erlaubnisinhaber", "§ 5 Abs. 6"+ref10, "Ausnahme: befristete Pflege aus dem Tierheim bis sechs Monate nach vorheriger Anzeige."));
+      out.push(D("Erlaubnis mitführen", "§ 4 Abs. 6"+ref10, "Original oder Kopie beim Führen außerhalb des befriedeten Besitztums; auf Verlangen aushändigen."));
+      out.push(D("Anzeigepflichten", "§ 8 Abs. 1, 2"+ref10, "Haltung, Erwerb, Abgabe, Umzug, Abhandenkommen und Tod anzeigen; Erwerber auf die Eigenschaft des Hundes hinweisen."));
+      if (gef){
+        if (cat==="g33") out.push(D("Zucht-, Kreuzungs- und Handelsverbot", "§ 9 Satz 1", "Gilt für Hunde im Sinne des § 3 Abs. 3."));
+        out.push(D("Verpaarung verhindern", "§ 9 Satz 2", "Bei Verstoß kann die Unfruchtbarmachung angeordnet werden (§ 9 Satz 3)."));
+      }
+      out.push(D("Haltungsuntersagung möglich", "§ 12 Abs. 2", "Soll-Vorschrift bei schweren oder wiederholten Verstößen, fehlenden Erlaubnisvoraussetzungen oder versagter Erlaubnis."));
+    }
+
+    if (cat==="g11"){
+      out.push(D("Anzeige der Haltung", "§ 11 Abs. 1", "Bei der örtlichen Ordnungsbehörde."));
+      out.push(D("Sachkunde", "§ 11 Abs. 2, 3", "Bescheinigung durch anerkannte Sachverständige oder von den Tierärztekammern benannte Tierärzte. Kraft Gesetzes sachkundig sind die Gruppen nach § 6 Abs. 3 (über § 11 Abs. 2)."));
+      out.push(D("Zuverlässigkeit", "§ 11 Abs. 2, 5", "Führungszeugnis nur auf Anordnung bei konkreten Zweifeln (§ 11 Abs. 5)."));
+      out.push(D("Mikrochip-Kennzeichnung", "§ 11 Abs. 2 i.V.m. § 4 Abs. 7", ""));
+      out.push(D("Haftpflichtversicherung", "§ 11 Abs. 2 i.V.m. § 5 Abs. 5", "Mindestens 500.000 € für Personenschäden und 250.000 € für sonstige Schäden."));
+      out.push(D("Leinenpflicht innerorts", "§ 11 Abs. 6", "Außerhalb des befriedeten Besitztums innerhalb im Zusammenhang bebauter Ortsteile auf öffentlichen Straßen, Wegen und Plätzen; ausgewiesene Hundeauslaufbereiche ausgenommen (§ 11 Abs. 6 Satz 2 i.V.m. § 5 Abs. 2 Satz 2)."));
+      out.push(D("Keine Erlaubnis, kein Maulkorb", "§ 11", "Weder Erlaubnispflicht noch allgemeine Maulkorbpflicht.", true));
+      out.push(D("Haltungsuntersagung möglich", "§ 12 Abs. 2", "Wenn die Haltungsvoraussetzungen des § 11 nicht erfüllt sind."));
+    }
+
+    out.push(D("Allgemeine Sorgfaltspflicht", "§ 2 Abs. 1", "Halten, Führen und Beaufsichtigen so, dass keine Gefahr für Leben oder Gesundheit von Menschen oder Tieren ausgeht."));
+    out.push(D("Leinenpflicht in besonderen Bereichen", "§ 2 Abs. 2", "Fußgängerzonen und vergleichbar belebte innerörtliche Bereiche; umfriedete öffentliche Park-, Garten- und Grünanlagen einschließlich Spielplätzen (außer Auslaufbereichen); Versammlungen, Volksfeste und andere Veranstaltungen; öffentliche Gebäude, Schulen und Kindergärten."));
+    if (cat==="sonst") out.push(D("Örtliche Regelungen beachten", "§ 15", "Ordnungsbehördliche Verordnungen und kommunale Vorschriften können weitere Leinenpflichten vorsehen."));
+    out.push(D("Bußgeldrahmen", "§ 20", "Ordnungswidrigkeiten können mit einer Geldbuße bis zu 100.000 € geahndet werden."));
+    return out;
+  }
+
+  function notes(s, c){
+    var N = [];
+    var cat = c.cat;
+    if (s.fest==="pending"){
+      N.push(["offen","Vorfall ohne Feststellung: Bis zur Feststellung nach § 3 Abs. 3 Satz 2 gilt die oben gezeigte Einstufung. Ist ein Tatbestand des § 3 Abs. 3 Satz 1 erfüllt, ist die Einstufung eine gebundene Entscheidung (Nr. 3.3.1 VV LHundG n.F.; OVG NRW, Beschl. v. 20.04.2020 – 5 A 4519/19)."]);
+      N.push(["vv","Wildschärfe von Jagdhunden begründet keine Gefährlichkeit; Gebrauchshundesport (IGP/IPO) ist von der gefahrbegründenden Ausbildung nach Nr. 2 abzugrenzen (Nr. 3.3.1.2/3.3.1.3 VV LHundG n.F.)."]);
+    }
+    if (cat==="g33"){
+      N.push(["rspr","Die Einstufung nach § 3 Abs. 3 Satz 1 ist eine gebundene Entscheidung; verfassungsrechtliche Bedenken bestehen nicht (OVG NRW, Beschl. v. 20.04.2020 – 5 A 4519/19, so zitiert in Nr. 3.3.1 VV LHundG n.F.)."]);
+      N.push(["vv","Aufhebung der Feststellung: Nr. 3.3.2 VV LHundG n.F. regelt Verfahren, Rolle des Veterinäramts und eine Antragsfrist von einem Jahr. Den genauen Inhalt vor Verwendung am Erlasstext prüfen."]);
+    }
+    if (cat==="g32" || (cat==="g33" && c.listed && s.group!=="10")){
+      N.push(["rspr","Zur Einstufung einer Kreuzung mit einem American Staffordshire Terrier als gefährlicher Hund: OVG NRW, Beschl. v. 10.02.2025 – 5 B 7/25, 5 E 2/25."]);
+    }
+    if (s.group==="mini"){
+      N.push(["rspr","Miniatur-Bullterrier: Im Zweifel greift die Zuordnung zum Standard-Bullterrier über § 3 Abs. 2 Satz 3 (OVG NRW, Urt. v. 17.02.2020 – 5 A 3227/17, Rn. 57; ebenso OVG Magdeburg, Beschl. v. 18.06.2014 – 3 M 255/13)."]);
+    }
+    if (cat==="g32vv" || s.group==="bully"){
+      N.push(["vv","Nr. 3.2.5 VV LHundG gilt seit 07.10.2026 (RdErl. v. 30.09.2026, MB.NRW 2026 Nr. 281). Nach dem geänderten Satz 9 f. von Nr. 3.2.1 sind solche Hunde auch auf Kreuzungen nach § 3 Abs. 2 oder § 10 Abs. 1 zu prüfen."]);
+      N.push(["offen","Ob Gerichte der Vermutung der VV folgen, ist für NRW soweit ersichtlich noch nicht obergerichtlich geklärt. Maßstab bleibt das deutliche Hervortreten des Phänotyps (§ 3 Abs. 2 Satz 2)."]);
+    }
+    if (cat==="b10" && s.origin==="clear"){
+      N.push(["rspr","§ 3 Abs. 2 Satz 2 (Phänotyp) gilt auch für § 10 Abs. 1 (OVG NRW, Urt. v. 12.03.2019 – 5 A 1210/17, Rn. 54)."]);
+    }
+    if (c.hasOrigin && s.origin==="none"){
+      N.push(["rspr","Ob der Phänotyp „deutlich hervortritt“, entscheidet die Behörde regelmäßig nach amtstierärztlicher Begutachtung. An deren Ergebnis ist sie nicht gebunden (VG Arnsberg, Beschl. v. 03.09.2003 – 3 L 1358/03, zitiert nach VV LHundG i.d.F. 2017)."]);
+    }
+    if (strictCat(cat) && !s.befreit && cat!=="g33"){
+      N.push(["vv","Erlaubnis mit Nebenbestimmung: Werden nach Haltungsbeginn Kinder oder andere besonders schutzbedürftige Personen in den Haushalt aufgenommen, kann eine Nebenbestimmung oder ein Widerrufsvorbehalt geboten sein (Nr. 4.4.1 VV LHundG n.F.)."]);
+    }
+    return N;
+  }
+  function strictCat(cat){ return cat==="g33"||cat==="g32"||cat==="g32vv"||cat==="b10"; }
+
+  var TAGS = { vv:["VV","t-vv"], rspr:["Rspr.","t-rspr"], offen:["offen","t-offen"], gesetz:["Praxis","t-gesetz"] };
+
+  function esc(t){ return String(t).replace(/[&<>"]/g,function(ch){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch];}); }
+
+  var last = null;
+  function render(){
+    var s = readState(), c = classify(s), m = CAT[c.cat];
+    $("originBox").classList.toggle("hidden", !c.hasOrigin);
+    $("nrBox").classList.toggle("hidden", s.fest!=="yes");
+    $("befreitBox").classList.toggle("hidden", !(c.cat==="g32"||c.cat==="g32vv"||c.cat==="b10"));
+    if (!(c.cat==="g32"||c.cat==="g32vv"||c.cat==="b10")) s.befreit = false;
+
+    var sf = $("sizeFlag");
+    sf.textContent = s.sizeKnown ? (s.big ? "Schwellenwert nach § 11 Abs. 1 erreicht" : "Schwellenwerte nach § 11 Abs. 1 nicht erreicht") : "";
+    sf.style.color = s.big ? "var(--info)" : "var(--muted)";
+
+    ["badgePill","catPill"].forEach(function(id){ var p=$(id); p.className="pill "+m.cls; p.textContent=m.pill; });
+    $("badgeNorm").textContent = m.norm.replace(" LHundG NRW","");
+    $("leadCard").style.setProperty("--cat", m.color);
+    var title = m.title;
+    if (c.cat==="g33") title += " (§ 3 Abs. 3 Nr. "+s.nr+")";
+    if (s.fest==="pending") title += " – Feststellung steht aus";
+    $("catTitle").textContent = title;
+    $("catNorm").textContent = m.norm;
+
+    var sub = subsumtion(s,c);
+    $("subsumtion").innerHTML = sub.map(function(x){ return "<li>"+esc(x)+"</li>"; }).join("");
+
+    var du = duties(s,c);
+    $("duties").innerHTML = du.map(function(d){
+      return '<li class="duty'+(d.off?' off':'')+'"><div class="duty-head"><span class="duty-title">'+esc(d.title)+'</span><span class="cite">'+esc(d.cite)+'</span></div>'+(d.text?'<div class="duty-text">'+esc(d.text)+'</div>':'')+'</li>';
+    }).join("");
+
+    var no = notes(s,c);
+    $("notesCard").classList.toggle("hidden", no.length===0);
+    $("notes").innerHTML = no.map(function(n){ var t=TAGS[n[0]]; return '<li class="note"><span class="tag '+t[1]+'">'+t[0]+'</span><span>'+esc(n[1])+'</span></li>'; }).join("");
+
+    last = {s:s, c:c, m:m, title:title, sub:sub, du:du, no:no};
+    $("copyMsg").textContent = "";
+  }
+
+  function asText(){
+    if (!last) return "";
+    var L = [];
+    L.push("LHundG-Schnellprüfung (Stand 16.11.2026)");
+    L.push("Hund: "+last.s.breed+(last.c.hasOrigin?" ("+({pure:"reinrassig",clear:"Kreuzung, Phänotyp deutlich",doubt:"Kreuzung, Phänotyp zweifelhaft",none:"Kreuzung, Phänotyp nicht deutlich"})[last.s.origin]+")":"")+(isNaN(last.s.cm)?"":", "+last.s.cm+" cm")+(isNaN(last.s.kg)?"":", "+last.s.kg+" kg"));
+    L.push("Ergebnis: "+last.title+" – "+last.m.norm);
+    L.push("");
+    last.sub.forEach(function(x,i){ L.push((i+1)+". "+x); });
+    L.push("");
+    L.push("Pflichten:");
+    last.du.forEach(function(d){ L.push((d.off?"[entfällt] ":"- ")+d.title+" ("+d.cite+")"+(d.text?": "+d.text:"")); });
+    if (last.no.length){ L.push(""); L.push("Hinweise:"); last.no.forEach(function(n){ L.push("- ["+TAGS[n[0]][0]+"] "+n[1]); }); }
+    return L.join("\n");
+  }
+
+  $("f").addEventListener("input", render);
+  $("f").addEventListener("change", render);
+  $("f").addEventListener("submit", function(e){ e.preventDefault(); });
+  $("copy").addEventListener("click", function(){
+    var t = asText();
+    try {
+      navigator.clipboard.writeText(t).then(function(){ $("copyMsg").textContent = "Kopiert."; }, function(){ $("copyMsg").textContent = "Kopieren wurde vom Browser blockiert."; });
+    } catch(e){ $("copyMsg").textContent = "Kopieren wird hier nicht unterstützt."; }
+  });
+  $("reset").addEventListener("click", function(){
+    $("f").reset(); render(); window.scrollTo(0,0);
+  });
+  render();
+})();
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
+}
+</script>
+</body>
+</html>
